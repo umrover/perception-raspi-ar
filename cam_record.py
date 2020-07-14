@@ -14,7 +14,7 @@ cam = PiCamera()
 cam.resolution = (1024,768)
 cam.start_preview()
 #camera warm up time
-time.sleep(2)
+sleep(2)
 cam.capture(my_file)
 #do some stuff
 

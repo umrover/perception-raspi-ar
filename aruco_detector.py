@@ -26,8 +26,8 @@ def main():
     res = (320,240)
     fps = 30
 
-    vs = VideoStream(src=0, usePiCamera=True, resolution=res, 
-        framerate=fps).start()
+    # vs = VideoStream(src=0, usePiCamera=True, resolution=res, 
+    #    framerate=fps).start()
 
     #camera warm up time
     time.sleep(2)
@@ -38,14 +38,14 @@ def main():
     # cam.start_preview()
     # #camera warm-up
     # time.sleep(2)
-
-    cap = cv2.VideoCapture(0)
-
+    print("before VideoCapture")
+    # cap = cv2.VideoCapture(0)
+    print("after VideoCapture")
     while(True):
         # Capture frame-by-frame
         ret, frame = cap.read()
         #print(frame.shape)
-
+        print("Read successful?", ret)
         # Our operations on the frame come here
         gray_img = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         aruco_dict = aruco.getPredefinedDictionary(cv2.aruco.DICT_5X5_50)
@@ -60,10 +60,11 @@ def main():
         if(len(id) > 0):
             for idx, i in enumerate(id):
                 # call function to calculate ar tag heading relative to rover
-                heading = global_coord_trans(id[i], corners[i*4:(i+1)*4])
+                ##UNCOMMENT    heading = global_coord_trans(id[i], corners[i*4:(i+1)*4])
                 # this is where we would send heading over LCM channel
                 # also note global coord trans could happen somewhere 
                 #    outside of this script
+                print(idx, ":", i)
         gray_img = aruco.drawDetectedMarkers(gray_img, corners)
         #print(rejectedImgPoints)
         
@@ -103,8 +104,7 @@ def global_coord_trans(id, corners):
         A = intrn['cam_matrix'] #this is given by cam calibration tool
 
         inner_mat = np.matmul(np.dot(s, center), np.linalg.inv(A)) - translation #missing s for scaling pixel coords. tbh idk what it is
-        global_coords = np.matmul(np.linalg.inv(rotation), 
-
+        global_coords = np.matmul(np.linalg.inv(rotation), 0) #change the 0 at the end 
 
     except yaml.YAMLError as exc:
         print("Failed global transformation for", id, "ERROR:", exc)
