@@ -25,6 +25,8 @@ def main():
     # cam = PiCamera()
     res = (320,240)
     fps = 30
+    KNOWN_WIDTH = 20 # unit is cm
+
 
     # vs = VideoStream(src=0, usePiCamera=True, resolution=res, 
     #    framerate=fps).start()
@@ -60,11 +62,12 @@ def main():
         if(len(id) > 0):
             for idx, i in enumerate(id):
                 # call function to calculate ar tag heading relative to rover
-                ##UNCOMMENT    heading = global_coord_trans(id[i], corners[i*4:(i+1)*4])
+                depth = get_depth(id[i], corners[i*4:(i+1)*4])
+                heading = global_coord_trans(id[i], corners[i*4:(i+1)*4], depth)
                 # this is where we would send heading over LCM channel
                 # also note global coord trans could happen somewhere 
                 #    outside of this script
-                print(idx, ":", i)
+                print("Depth and Heading of", i, "are:", depth, "&", heading)
         gray_img = aruco.drawDetectedMarkers(gray_img, corners)
         #print(rejectedImgPoints)
         
@@ -82,7 +85,7 @@ def main():
     return
 
 
-def global_coord_trans(id, corners):
+def global_coord_trans(id, corners, depth):
     #transform the corners into an image coordinate system
     #representation, then transform into the global
     #coordinate frame of the rover using yaml file with
@@ -110,6 +113,17 @@ def global_coord_trans(id, corners):
         print("Failed global transformation for", id, "ERROR:", exc)
 
     return heading
+
+
+def get_depth(id, corners):
+    width = abs(((corners[0][1] + corners[1][1]) / 2) - ((corners[0][0] + corners[1][0]) / 2))
+    depth = distance_to_camera(KNOWN_WIDTH, FOCAL_LENGTH, width)
+    return depth
+
+
+def distance_to_camera(knownWidth, focalLength, perWidth):
+	# compute and return the distance from the maker to the camera
+	return (knownWidth * focalLength) / perWidth
 
 
 if __name__ == '__main__':
