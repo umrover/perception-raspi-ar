@@ -25,30 +25,25 @@ def main():
     # cam = PiCamera()
     res = (320,240)
     fps = 30
-    KNOWN_WIDTH = 20 # unit is cm
+    KNOWN_WIDTH = 20 # unit is cm    
 
-    # vs = VideoStream(src=0, usePiCamera=True, resolution=res, 
-    #    framerate=fps).start()
-
-    #camera warm up time
+    # initialize the camera and grab a reference to the raw camera capture
+    camera = PiCamera()
+    camera.resolution = (640, 480)
+    camera.framerate = 32
+    rawCapture = PiRGBArray(camera, size=(640, 480))
+    # allow the camera to warmup
     time.sleep(2)
     
+    # capture frames from the camera
+    for frame in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
+        print("Captured Image")
+        # grab the raw NumPy array representing the image, then initialize the timestamp
+        # and occupied/unoccupied text
+        image = np.array(frame.array)
 
-    # cam = PiCamera()
-    # cam.resolution = (1024,768)
-    # cam.start_preview()
-    # #camera warm-up
-    # time.sleep(2)
-    print("before VideoCapture")
-    # cap = cv2.VideoCapture(0)
-    print("after VideoCapture")
-    while(True):
-        # Capture frame-by-frame
-        ret, frame = cap.read()
-        #print(frame.shape)
-        print("Read successful?", ret)
         # Our operations on the frame come here
-        gray_img = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        gray_img = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         aruco_dict = aruco.getPredefinedDictionary(cv2.aruco.DICT_5X5_50)
         parameters = aruco.DetectorParameters_create()
         print("Parameters:", parameters)
