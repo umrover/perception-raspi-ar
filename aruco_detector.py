@@ -27,7 +27,6 @@ def main():
     fps = 30
     KNOWN_WIDTH = 20 # unit is cm
 
-
     # vs = VideoStream(src=0, usePiCamera=True, resolution=res, 
     #    framerate=fps).start()
 
@@ -95,28 +94,56 @@ def global_coord_trans(id, corners, depth):
     center = np.array([(corners[0] + corners[1]) / 2], 
         [(corners[2] + corners[3]) / 2], [1])
 
-    extrinsics = file("right_cam_extrinsic.yaml", 'r')
-    cam_matrix = file("right_cam_intrinsic.yaml", 'r')
+    # extrinsics = file("cam_extrinsic.yaml", 'r')
+    cam_matrix = file("cam_intrinsic.yaml", 'r')
     try:
-        extrn = yaml.safe_load(extrinsics)
+        # extrn = yaml.safe_load(extrinsics)
         intrn = yaml.safe_load(cam_matrix)
 
-        rotation = extrn['rotation']
-        translation = extrn['translation']
+        # rotation = extrn['rotation']
+        # translation = extrn['translation']
 
-        A = intrn['cam_matrix'] #this is given by cam calibration tool
+        A = intrn['cam_matrix']             #this is given by cam calibration tool
+        A = np.array(A).reshape((3, 3))     #reshape data to 3x3 matrix
 
-        inner_mat = np.matmul(np.dot(s, center), np.linalg.inv(A)) - translation #missing s for scaling pixel coords. tbh idk what it is
-        global_coords = np.matmul(np.linalg.inv(rotation), 0) #change the 0 at the end 
+        # inner_mat = np.matmul(np.dot(s, center), np.linalg.inv(A)) - translation #missing s for scaling pixel coords. tbh idk what it is
+        # global_coords = np.matmul(np.linalg.inv(rotation), 0) #change the 0 at the end 
+
+        u = center[0]
+        v = center[1] # 0 and 1 may be mixed up
+        u0 = A[0,2]
+        v0 = A[1,2]
+        fx = A[0,0]
+        fy = A[1,1]
+
+        x = (u - u0) * depth / fx
+        y = (v - v0) * depth / fy
+        z = depth
 
     except yaml.YAMLError as exc:
         print("Failed global transformation for", id, "ERROR:", exc)
 
-    return heading
+    return (x, y, z) #heading
 
 
 def get_depth(id, corners):
     width = abs(((corners[0][1] + corners[1][1]) / 2) - ((corners[0][0] + corners[1][0]) / 2))
+    
+    cam_matrix = file("cam_intrinsic.yaml", 'r')
+    try:
+        intrn = yaml.safe_load(cam_matrix)
+
+        A = intrn['cam_matrix']             #this is given by cam calibration tool
+        A = np.array(A).reshape((3, 3))     #reshape data to 3x3 matrix
+
+        fx = A[0,0]
+        fy = A[1,1]
+
+        FOCAL_LENGTH = (fx + fy) / 2.0
+
+    except yaml.YAMLError as exc:
+        print("Failed focal length loading for", id, "ERROR:", exc)
+
     depth = distance_to_camera(KNOWN_WIDTH, FOCAL_LENGTH, width)
     return depth
 
