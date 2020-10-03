@@ -14,6 +14,7 @@ from io import BytesIO
 import time
 import os
 from picamera import PiCamera
+from picamera.array import PiRGBArray
 from imutils.video import VideoStream
 import imutils
 import yaml
@@ -23,8 +24,8 @@ def main():
     # my_file = open('my_image.jpg', 'wb')
     # # stream = BytesIO()
     # cam = PiCamera()
-    res = (320,240)
-    fps = 30
+    # res = (320,240)
+    # fps = 30
     KNOWN_WIDTH = 20 # unit is cm    
 
     # initialize the camera and grab a reference to the raw camera capture
@@ -37,7 +38,7 @@ def main():
     
     # capture frames from the camera
     for frame in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
-        print("Captured Image")
+        # print("Captured Image")
         # grab the raw NumPy array representing the image, then initialize the timestamp
         # and occupied/unoccupied text
         image = np.array(frame.array)
@@ -46,22 +47,23 @@ def main():
         gray_img = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         aruco_dict = aruco.getPredefinedDictionary(cv2.aruco.DICT_5X5_50)
         parameters = aruco.DetectorParameters_create()
-        print("Parameters:", parameters)
+        # print("Parameters:", parameters)
 
         # Lists of ids and the corners belonging to each id
         corners, ids, rejectedImgPoints = aruco.detectMarkers(gray_img, 
             aruco_dict, parameters=parameters)
-        print("Corners:", corners)
+        # print("Corners:", corners)
+        # print(type(id))
 
-        if(len(id) > 0):
-            for idx, i in enumerate(id):
+        if(len(corners) > 0):
+            for i in range(len(corners)): # used to be id                
                 # call function to calculate ar tag heading relative to rover
-                depth = get_depth(id[i], corners[i*4:(i+1)*4])
-                heading = global_coord_trans(id[i], corners[i*4:(i+1)*4], depth)
+                depth = get_depth(i, corners[i]) #used to be id[i]
+                ###heading = global_coord_trans(i, corners[i], depth) # id[i]
                 # this is where we would send heading over LCM channel
                 # also note global coord trans could happen somewhere 
                 #    outside of this script
-                print("Depth and Heading of", i, "are:", depth, "&", heading)
+                print("Depth and Heading of", i, "are:", depth) # , "&", heading)
         gray_img = aruco.drawDetectedMarkers(gray_img, corners)
         #print(rejectedImgPoints)
         
@@ -69,10 +71,10 @@ def main():
         cv2.imshow('frame',gray_img)
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
-
+        rawCapture.truncate(0)
 
     # When everything done, release the capture
-    cap.release()
+    # cap.release()
     cv2.destroyAllWindows()
 
 
@@ -122,24 +124,30 @@ def global_coord_trans(id, corners, depth):
 
 
 def get_depth(id, corners):
-    width = abs(((corners[0][1] + corners[1][1]) / 2) - ((corners[0][0] + corners[1][0]) / 2))
+    # print(corners)
+    # print(corners.shape)
+    width = abs(((corners[0][2][1] + corners[0][3][1]) / 2) - ((corners[0][0][1] + corners[0][1][1]) / 2))
+    # print(width)
     
-    cam_matrix = file("cam_intrinsic.yaml", 'r')
-    try:
-        intrn = yaml.safe_load(cam_matrix)
+    with open("cam_intrinsic.yaml", 'r') as cam_matrix:
+    #cam_matrix = file("cam_intrinsic.yaml", 'r')
+        try:
+            intrn = yaml.safe_load(cam_matrix)
 
-        A = intrn['cam_matrix']             #this is given by cam calibration tool
-        A = np.array(A).reshape((3, 3))     #reshape data to 3x3 matrix
+            A = intrn['cam_matrix']             #this is given by cam calibration tool
+            A = np.array(A).reshape((3, 3))     #reshape data to 3x3 matrix
 
-        fx = A[0,0]
-        fy = A[1,1]
+            fx = A[0,0]
+            fy = A[1,1]
 
-        FOCAL_LENGTH = (fx + fy) / 2.0
+            FOCAL_LENGTH = (fx + fy) / 2.0
+            KNOWN_WIDTH = 20
 
-    except yaml.YAMLError as exc:
-        print("Failed focal length loading for", id, "ERROR:", exc)
+        except yaml.YAMLError as exc:
+            print("Failed focal length loading for", id, "ERROR:", exc)
 
     depth = distance_to_camera(KNOWN_WIDTH, FOCAL_LENGTH, width)
+    print("depth is:", depth)
     return depth
 
 
