@@ -21,11 +21,6 @@ import yaml
 
 def main():
 
-    # my_file = open('my_image.jpg', 'wb')
-    # # stream = BytesIO()
-    # cam = PiCamera()
-    # res = (320,240)
-    # fps = 30
     KNOWN_WIDTH = 20 # unit is cm    
 
     # initialize the camera and grab a reference to the raw camera capture
@@ -33,6 +28,7 @@ def main():
     camera.resolution = (640, 480)
     camera.framerate = 32
     rawCapture = PiRGBArray(camera, size=(640, 480))
+    
     # allow the camera to warmup
     time.sleep(2)
     
@@ -59,11 +55,11 @@ def main():
             for i in range(len(corners)): # used to be id                
                 # call function to calculate ar tag heading relative to rover
                 depth = get_depth(i, corners[i]) #used to be id[i]
-                ###heading = global_coord_trans(i, corners[i], depth) # id[i]
+                heading = global_coord_trans(i, corners[i], depth) # id[i]
                 # this is where we would send heading over LCM channel
                 # also note global coord trans could happen somewhere 
                 #    outside of this script
-                print("Depth and Heading of", i, "are:", depth) # , "&", heading)
+                print("Depth and Heading of", i, "are:", depth , "&", heading)
         gray_img = aruco.drawDetectedMarkers(gray_img, corners)
         #print(rejectedImgPoints)
         
@@ -88,44 +84,48 @@ def global_coord_trans(id, corners, depth):
     #extrinsics
 
     #use corners detected to find center pixel
-    center = np.array([(corners[0] + corners[1]) / 2], 
-        [(corners[2] + corners[3]) / 2], [1])
+    center = np.array([(corners[0][0][1] + corners[0][3][1]) / 2, 
+        (corners[0][1][0] + corners[0][2][0]) / 2])
 
+    with open("cam_intrinsic.yaml", 'r') as cam_matrix:
+    #cam_matrix = file("cam_intrinsic.yaml", 'r')
     # extrinsics = file("cam_extrinsic.yaml", 'r')
-    cam_matrix = file("cam_intrinsic.yaml", 'r')
-    try:
-        # extrn = yaml.safe_load(extrinsics)
-        intrn = yaml.safe_load(cam_matrix)
+        try:
+            # extrn = yaml.safe_load(extrinsics)
+            intrn = yaml.safe_load(cam_matrix)
 
-        # rotation = extrn['rotation']
-        # translation = extrn['translation']
+            # rotation = extrn['rotation']
+            # translation = extrn['translation']
 
-        A = intrn['cam_matrix']             #this is given by cam calibration tool
-        A = np.array(A).reshape((3, 3))     #reshape data to 3x3 matrix
+            A = intrn['cam_matrix']             #this is given by cam calibration tool
+            A = np.array(A).reshape((3, 3))     #reshape data to 3x3 matrix
 
-        # inner_mat = np.matmul(np.dot(s, center), np.linalg.inv(A)) - translation #missing s for scaling pixel coords. tbh idk what it is
-        # global_coords = np.matmul(np.linalg.inv(rotation), 0) #change the 0 at the end 
+            # inner_mat = np.matmul(np.dot(s, center), np.linalg.inv(A)) - translation #missing s for scaling pixel coords. tbh idk what it is
+            # global_coords = np.matmul(np.linalg.inv(rotation), 0) #change the 0 at the end 
 
-        u = center[0]
-        v = center[1] # 0 and 1 may be mixed up
-        u0 = A[0,2]
-        v0 = A[1,2]
-        fx = A[0,0]
-        fy = A[1,1]
+            u = center[1]
+            v = center[0] # 0 and 1 may be mixed up
+            u0 = A[0,2]
+            v0 = A[1,2]
+            fx = A[0,0]
+            fy = A[1,1]
 
-        x = (u - u0) * depth / fx
-        y = (v - v0) * depth / fy
-        z = depth
+            x = (u - u0) * depth / fx
+            y = (v - v0) * depth / fy
+            z = depth
 
-    except yaml.YAMLError as exc:
-        print("Failed global transformation for", id, "ERROR:", exc)
+        except yaml.YAMLError as exc:
+            print("Failed global transformation for", id, "ERROR:", exc)
 
-    return (x, y, z) #heading
+    # (x, y, z) are 3D backprojected coordinates. Points relative to camera frame
+    # Another transformation is needed between camera frame and rover frame (using extrinsics)
+    return (x, y, z) # place heading back in
 
 
 def get_depth(id, corners):
     # print(corners)
     # print(corners.shape)
+    # unit of width is pixels
     width = abs(((corners[0][2][1] + corners[0][3][1]) / 2) - ((corners[0][0][1] + corners[0][1][1]) / 2))
     # print(width)
     
@@ -140,14 +140,14 @@ def get_depth(id, corners):
             fx = A[0,0]
             fy = A[1,1]
 
-            FOCAL_LENGTH = (fx + fy) / 2.0
+            FOCAL_LENGTH = (fx + fy) / 2.0      #probably wrong
             KNOWN_WIDTH = 20
 
         except yaml.YAMLError as exc:
             print("Failed focal length loading for", id, "ERROR:", exc)
 
-    depth = distance_to_camera(KNOWN_WIDTH, FOCAL_LENGTH, width)
-    print("depth is:", depth)
+    depth = distance_to_camera(KNOWN_WIDTH, FOCAL_LENGTH, width) / 10
+    print("depth is:", depth, "\t inches")
     return depth
 
 
