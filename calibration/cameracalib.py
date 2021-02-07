@@ -133,16 +133,16 @@ if (nPatternFound > 1):
     dst = dst[y:y+h, x:x+w]
     print("ROI: ", x, y, w, h)
 
-    cv2.imwrite(workingFolder + "/calibresult2.png",dst)
-    print("Calibrated picture saved as calibresult.png")
+    cv2.imwrite(workingFolder + "/calibresult_techtalk.png",dst)
+    print("Calibrated picture saved as calibresult_techtalk.png")
     print("Calibration Matrix: ")
     print(mtx)
     print("Disortion: ", dist)
 
     #--------- Save result
-    filename = workingFolder + "/cameraMatrix2.txt"
+    filename = workingFolder + "/cameraMatrix_techtalk.txt"
     np.savetxt(filename, mtx, delimiter=',')
-    filename = workingFolder + "/cameraDistortion2.txt"
+    filename = workingFolder + "/cameraDistortion_techtalk.txt"
     np.savetxt(filename, dist, delimiter=',')
 
     mean_error = 0

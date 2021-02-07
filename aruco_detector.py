@@ -18,13 +18,12 @@ from imutils.video import VideoStream
 import imutils
 import yaml
 
+### For the print statements, feel free to put them in #IFDEBUG flags
+
 def main():
 
-    # my_file = open('my_image.jpg', 'wb')
-    # # stream = BytesIO()
-    # cam = PiCamera()
-    res = (320,240)
-    fps = 30
+    # establish global constants (hardcode in file or make optional param to fn call)
+    # KNOWN_WIDTH is the width of the AR tags to detect in URC competition
     KNOWN_WIDTH = 20 # unit is cm    
 
     # initialize the camera and grab a reference to the raw camera capture
@@ -38,12 +37,12 @@ def main():
     # capture frames from the camera
     for frame in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
         print("Captured Image")
-        # grab the raw NumPy array representing the image, then initialize the timestamp
-        # and occupied/unoccupied text
+        # grab the raw NumPy array representing the image
         image = np.array(frame.array)
 
         # Our operations on the frame come here
         gray_img = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        #TODO: change "cv2.aruco.DICT_5x5" to rover aruco lib
         aruco_dict = aruco.getPredefinedDictionary(cv2.aruco.DICT_5X5_50)
         parameters = aruco.DetectorParameters_create()
         print("Parameters:", parameters)
@@ -59,8 +58,8 @@ def main():
                 depth = get_depth(id[i], corners[i*4:(i+1)*4])
                 heading = global_coord_trans(id[i], corners[i*4:(i+1)*4], depth)
                 # this is where we would send heading over LCM channel
-                # also note global coord trans could happen somewhere 
-                #    outside of this script
+                # note: global coord trans could happen somewhere 
+                #       outside of this script. It doesn't, but it could
                 print("Depth and Heading of", i, "are:", depth, "&", heading)
         gray_img = aruco.drawDetectedMarkers(gray_img, corners)
         #print(rejectedImgPoints)
@@ -145,6 +144,7 @@ def get_depth(id, corners):
 
 def distance_to_camera(knownWidth, focalLength, perWidth):
 	# compute and return the distance from the maker to the camera
+    # this makes use of a triangle similarity
 	return (knownWidth * focalLength) / perWidth
 
 
